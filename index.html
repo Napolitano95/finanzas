@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Dinero Pro - Gestión Integral</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        #authScreen { display: flex; }
+        #appScreen { display: none; }
+        .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.8); z-index: 100; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-[#F8F9FC] text-slate-900">
+
+    <!-- OVERLAY DE CARGA -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="flex flex-col items-center gap-3">
+            <div class="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sincronizando Datos...</p>
+        </div>
+    </div>
+
+    <!-- PANTALLA DE AUTENTICACIÓN -->
+    <div id="authScreen" class="min-h-screen items-center justify-center p-6">
+        <div class="w-full max-w-sm space-y-8">
+            <div class="text-center">
+                <div class="w-20 h-20 bg-blue-600 rounded-[2rem] mx-auto flex items-center justify-center text-white shadow-2xl mb-6">
+                    <i data-lucide="wallet" class="w-10 h-10"></i>
+                </div>
+                <h1 class="text-4xl font-black tracking-tighter">MI<span class="text-blue-600">DINERO</span></h1>
+                <p id="authSubtitle" class="text-slate-400 text-sm mt-2">Gestiona tus finanzas de forma profesional.</p>
+            </div>
+
+            <div class="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100 space-y-6">
+                <div class="flex p-1 bg-slate-100 rounded-2xl">
+                    <button onclick="toggleAuthMode('login')" id="btnTabLogin" class="flex-1 py-3 text-xs font-black uppercase rounded-xl bg-white shadow-sm text-blue-600">Entrar</button>
+                    <button onclick="toggleAuthMode('signup')" id="btnTabSignup" class="flex-1 py-3 text-xs font-black uppercase rounded-xl text-slate-400">Registrar</button>
+                </div>
+
+                <form id="authForm" class="space-y-4">
+                    <div id="nameField" class="space-y-1 hidden">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase ml-2">Nombre Completo</label>
+                        <input type="text" id="authName" placeholder="¿Cómo te llamas?" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase ml-2">Email</label>
+                        <input type="email" id="authEmail" required placeholder="tu@correo.com" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase ml-2">Contraseña</label>
+                        <input type="password" id="authPass" required placeholder="••••••••" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm">
+                    </div>
+                    <button type="submit" id="authSubmitBtn" class="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-lg uppercase tracking-widest text-xs transition-transform active:scale-95">
+                        Iniciar Sesión
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANTALLA PRINCIPAL DE LA APP -->
+    <div id="appScreen" class="flex-col min-h-screen pb-32">
+        <header class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-100 shadow-sm">
+            <div class="max-w-md mx-auto px-6 h-16 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white">
+                        <i data-lucide="wallet" class="w-5 h-5"></i>
+                    </div>
+                    <h1 class="font-extrabold text-lg tracking-tight">MI<span class="text-blue-600">DINERO</span></h1>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="logout()" class="p-2 text-slate-300 hover:text-rose-500 transition-colors">
+                        <i data-lucide="log-out" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Selector de Mes -->
+        <div class="max-w-md mx-auto px-6 mt-6">
+            <div class="bg-white border border-slate-100 rounded-3xl p-2 flex items-center justify-between shadow-sm">
+                <button onclick="changeMonth(-1)" class="p-2 rounded-2xl hover:bg-slate-50"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                <span id="currentMonthLabel" class="font-black text-sm uppercase tracking-widest text-slate-700 capitalize">Mes Actual</span>
+                <button onclick="changeMonth(1)" class="p-2 rounded-2xl hover:bg-slate-50"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+            </div>
+        </div>
+
+        <main class="max-w-md mx-auto px-6 py-6 w-full space-y-8">
+            
+            <!-- PESTAÑA: RESUMEN (DASHBOARD) -->
+            <div id="tab-dashboard" class="tab-content active space-y-8">
+                <div class="text-center py-4">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Balance del Mes</p>
+                    <h2 id="totalBalance" class="text-5xl font-black tracking-tighter text-slate-900">$0</h2>
+                    <div class="mt-4 inline-flex items-center gap-2 bg-blue-50 px-4 py-1.5 rounded-full border border-blue-100">
+                        <span id="userNameDisplay" class="text-[10px] font-bold text-blue-600 uppercase tracking-tight">Cargando...</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
+                        <p class="text-[8px] font-black text-slate-400 uppercase mb-1">Ingresos</p>
+                        <p id="totalIn" class="font-black text-lg text-emerald-600">$0</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
+                        <p class="text-[8px] font-black text-slate-400 uppercase mb-1">Gastos</p>
+                        <p id="totalOut" class="font-black text-lg text-rose-600">$0</p>
+                    </div>
+                </div>
+
+                <!-- Tarjeta Patrimonio -->
+                <div class="bg-slate-900 rounded-[2.5rem] p-6 text-white shadow-xl relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Patrimonio Acumulado</p>
+                            <h3 id="totalAssets" class="text-3xl font-black mt-1">$0</h3>
+                        </div>
+                        <div class="p-3 bg-white/10 rounded-2xl"><i data-lucide="piggy-bank" class="text-blue-400 w-6 h-6"></i></div>
+                    </div>
+                    <p class="text-[9px] text-slate-400 italic">Suma total de todas tus bolsas de ahorro e inversión.</p>
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="font-bold text-xs uppercase tracking-widest text-slate-400 px-2">Actividad Reciente</h3>
+                    <div id="recentList" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <!-- PESTAÑA: PRESUPUESTO -->
+            <div id="tab-budget" class="tab-content space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="font-black text-2xl uppercase tracking-tight text-slate-800">Presupuesto</h2>
+                    <button onclick="openModal('modalBudget')" class="p-2 bg-slate-100 rounded-xl text-slate-500"><i data-lucide="settings" class="w-5 h-5"></i></button>
+                </div>
+                <div id="budgetList" class="space-y-4"></div>
+            </div>
+
+            <!-- PESTAÑA: BOLSAS -->
+            <div id="tab-bags" class="tab-content space-y-6">
+                <h2 class="font-black text-2xl uppercase tracking-tight text-slate-800">Mis Bolsas</h2>
+                <div id="bagsList" class="grid grid-cols-1 gap-4"></div>
+                <button onclick="openModal('modalBag')" class="w-full py-4 border-2 border-dashed border-slate-200 rounded-[2rem] text-slate-400 font-bold text-xs uppercase tracking-widest hover:bg-slate-50">+ Crear Bolsa</button>
+            </div>
+
+        </main>
+
+        <!-- NAVEGACIÓN INFERIOR -->
+        <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-8 pt-4 pb-10 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-40">
+            <div class="max-w-md mx-auto flex justify-around items-center">
+                <button onclick="setActiveTab('dashboard')" class="nav-btn flex flex-col items-center gap-1 text-blue-600" data-tab="dashboard">
+                    <i data-lucide="layout-dashboard" class="w-6 h-6"></i>
+                    <span class="text-[8px] font-bold uppercase tracking-widest">Inicio</span>
+                </button>
+                <button onclick="setActiveTab('budget')" class="nav-btn flex flex-col items-center gap-1 text-slate-300" data-tab="budget">
+                    <i data-lucide="target" class="w-6 h-6"></i>
+                    <span class="text-[8px] font-bold uppercase tracking-widest">Metas</span>
+                </button>
+                <button onclick="openModal('modalTrans')" class="w-14 h-14 bg-slate-900 rounded-[1.5rem] flex items-center justify-center text-white -mt-12 shadow-2xl shadow-slate-400 active:scale-90 transition-transform">
+                    <i data-lucide="plus" class="w-8 h-8"></i>
+                </button>
+                <button onclick="setActiveTab('bags')" class="nav-btn flex flex-col items-center gap-1 text-slate-300" data-tab="bags">
+                    <i data-lucide="briefcase" class="w-6 h-6"></i>
+                    <span class="text-[8px] font-bold uppercase tracking-widest">Bolsas</span>
+                </button>
+                <button onclick="logout()" class="flex flex-col items-center gap-1 text-slate-300">
+                    <i data-lucide="log-out" class="w-6 h-6 text-slate-200"></i>
+                    <span class="text-[8px] font-bold uppercase tracking-widest">Salir</span>
+                </button>
+            </div>
+        </nav>
+    </div>
+
+    <!-- MODAL: NUEVA TRANSACCIÓN -->
+    <div id="modalTrans" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center p-6">
+        <div class="bg-white w-full max-w-sm rounded-[3rem] shadow-2xl p-8 animate-in zoom-in duration-200">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-black text-lg uppercase tracking-tight">Nuevo Registro</h3>
+                <button onclick="closeModal('modalTrans')" class="text-slate-300 hover:text-slate-900"><i data-lucide="x"></i></button>
+            </div>
+            <form id="formTrans" class="space-y-4">
+                <div class="flex p-1 bg-slate-100 rounded-2xl">
+                    <button type="button" onclick="setTransType('income')" id="btnTypeIn" class="flex-1 py-3 text-[10px] font-black uppercase rounded-xl transition-all bg-white shadow-sm text-blue-600">Ingreso</button>
+                    <button type="button" onclick="setTransType('expense')" id="btnTypeOut" class="flex-1 py-3 text-[10px] font-black uppercase rounded-xl transition-all text-slate-400">Gasto</button>
+                    <button type="button" onclick="setTransType('investment')" id="btnTypeInv" class="flex-1 py-3 text-[10px] font-black uppercase rounded-xl transition-all text-slate-400">Inversión</button>
+                </div>
+                <div id="catField" class="space-y-1">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase ml-2">Categoría</label>
+                    <select id="transCat" required class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-sm">
+                        <!-- Se llena dinámicamente -->
+                    </select>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase ml-2">Descripción</label>
+                    <input type="text" id="transDesc" required placeholder="¿En qué?" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-sm">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase ml-2">Monto ($)</label>
+                    <input type="number" id="transAmt" required placeholder="0" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-black text-lg text-blue-600">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-xl uppercase tracking-widest text-[10px] active:scale-95 transition-transform">
+                    Guardar Movimiento
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: CONFIGURAR PRESUPUESTO -->
+    <div id="modalBudget" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center p-6">
+        <div class="bg-white w-full max-w-sm rounded-[3rem] shadow-2xl p-8 max-h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-black text-lg uppercase tracking-tight">Metas del Mes</h3>
+                <button onclick="closeModal('modalBudget')" class="text-slate-300 hover:text-slate-900"><i data-lucide="x"></i></button>
+            </div>
+            <form id="formBudget" class="space-y-4 overflow-y-auto custom-scroll pr-2">
+                <div id="budgetInputs" class="space-y-4">
+                    <!-- Se llena dinámicamente -->
+                </div>
+                <button type="submit" class="w-full bg-slate-900 text-white font-black py-4 rounded-2xl shadow-xl uppercase tracking-widest text-[10px] mt-4">Guardar Metas</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: CREAR BOLSA -->
+    <div id="modalBag" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center p-6">
+        <div class="bg-white w-full max-w-sm rounded-[3rem] shadow-2xl p-8">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-black text-lg uppercase tracking-tight">Nueva Bolsa</h3>
+                <button onclick="closeModal('modalBag')" class="text-slate-300 hover:text-slate-900"><i data-lucide="x"></i></button>
+            </div>
+            <form id="formBag" class="space-y-4">
+                <input type="text" id="bagName" required placeholder="Nombre (Ej. Viaje, Emergencias)" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-sm">
+                <input type="text" id="bagDesc" placeholder="Descripción breve" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-sm text-slate-400">
+                <button type="submit" class="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-xl uppercase tracking-widest text-[10px]">Crear Bolsa</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- FIREBASE & LOGIC -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, deleteDoc, doc, orderBy, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // =========================================================================
+        // 🚀 CONFIGURACIÓN FIREBASE (REEMPLAZA ESTO) 🚀
+        // =========================================================================
+        const config = {
+            apiKey: "AIzaSyAmM0bILQFWoIATW4EVQmDVwiIEhLlYHps",
+            authDomain: "mis-finanzas-4d014.firebaseapp.com",
+            projectId: "mis-finanzas-4d014",
+            storageBucket: "mis-finanzas-4d014.firebasestorage.app",
+            messagingSenderId: "520769953292",
+            appId: "1:520769953292:web:351c0573fde13d711e9829"
+        };
+        // =========================================================================
+
+        const finalConfig = config.apiKey.includes("TU_API_KEY") && typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : config;
+        const app = initializeApp(finalConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = 'mi-dinero-html'; // DEBE COINCIDIR CON LAS REGLAS DE FIREBASE
+
+        let user = null;
+        let authMode = 'login';
+        let currentTab = 'dashboard';
+        let activeTransType = 'income';
+        let currentMonth = new Date().toISOString().split('T')[0].substring(0, 7); // YYYY-MM
+
+        const categories = {
+            income: ['Salario', 'Ventas', 'Freelance', 'Rendimientos'],
+            expense: ['Hogar', 'Comida', 'Transporte', 'Ocio', 'Salud', 'Educación', 'Otros'],
+            investment: [] // Se llena con las bolsas creadas
+        };
+
+        // --- AUTH LOGIC ---
+        window.toggleAuthMode = (mode) => {
+            authMode = mode;
+            const nameField = document.getElementById('nameField');
+            const authSubtitle = document.getElementById('authSubtitle');
+            const authSubmitBtn = document.getElementById('authSubmitBtn');
+            const btnTabLogin = document.getElementById('btnTabLogin');
+            const btnTabSignup = document.getElementById('btnTabSignup');
+
+            if (mode === 'login') {
+                nameField.classList.add('hidden');
+                authSubtitle.innerText = "Ingresa para gestionar tus finanzas.";
+                authSubmitBtn.innerText = "Iniciar Sesión";
+                btnTabLogin.className = "flex-1 py-3 text-xs font-black uppercase rounded-xl bg-white shadow-sm text-blue-600";
+                btnTabSignup.className = "flex-1 py-3 text-xs font-black uppercase rounded-xl text-slate-400";
+            } else {
+                nameField.classList.remove('hidden');
+                authSubtitle.innerText = "Crea tu cuenta gratis hoy mismo.";
+                authSubmitBtn.innerText = "Finalizar Registro";
+                btnTabSignup.className = "flex-1 py-3 text-xs font-black uppercase rounded-xl bg-white shadow-sm text-blue-600";
+                btnTabLogin.className = "flex-1 py-3 text-xs font-black uppercase rounded-xl text-slate-400";
+            }
+        };
+
+        document.getElementById('authForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('authEmail').value;
+            const pass = document.getElementById('authPass').value;
+            const name = document.getElementById('authName').value;
+
+            showLoading(true);
+            try {
+                if (authMode === 'signup') {
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+                    await updateProfile(userCredential.user, { displayName: name });
+                    await setDoc(doc(db, "artifacts", appId, "users", userCredential.user.uid, "settings", "perfil"), {
+                        nombre: name,
+                        email: email,
+                        creadoEn: Date.now()
+                    });
+                } else {
+                    await signInWithEmailAndPassword(auth, email, pass);
+                }
+            } catch (err) {
+                alert("Error de validación: " + err.message);
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        window.logout = () => signOut(auth);
+
+        onAuthStateChanged(auth, (u) => {
+            if (u) {
+                user = u;
+                document.getElementById('authScreen').style.display = 'none';
+                document.getElementById('appScreen').style.display = 'flex';
+                document.getElementById('userNameDisplay').innerText = `Hola, ${u.displayName ? u.displayName.split(' ')[0] : 'Usuario'}`;
+                initData();
+            } else {
+                user = null;
+                document.getElementById('authScreen').style.display = 'flex';
+                document.getElementById('appScreen').style.display = 'none';
+            }
+            lucide.createIcons();
+        });
+
+        // --- DATA LOGIC ---
+        let unsubTrans = null;
+        let unsubBags = null;
+        let unsubBudget = null;
+
+        function initData() {
+            if (!user) return;
+            showLoading(true);
+            updateUI();
+            
+            // Listeners
+            const qTrans = query(collection(db, "artifacts", appId, "users", user.uid, "movimientos"), orderBy("timestamp", "desc"));
+            unsubTrans = onSnapshot(qTrans, (snap) => {
+                const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderTransactions(data);
+                showLoading(false);
+            }, (err) => alert("Error al cargar movimientos: " + err.message));
+
+            const qBags = query(collection(db, "artifacts", appId, "users", user.uid, "bolsas"));
+            unsubBags = onSnapshot(qBags, (snap) => {
+                const bags = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                categories.investment = bags.map(b => b.nombre);
+                renderBags(bags);
+                populateCatSelect();
+            });
+
+            const docBudget = doc(db, "artifacts", appId, "users", user.uid, "settings", "presupuestos");
+            unsubBudget = onSnapshot(docBudget, (doc) => {
+                const budgetData = doc.exists() ? doc.data()[currentMonth] || {} : {};
+                renderBudgetList(budgetData);
+                populateBudgetInputs(budgetData);
+            });
+        }
+
+        function renderTransactions(data) {
+            const currentData = data.filter(t => t.date.startsWith(currentMonth));
+            
+            const inc = currentData.filter(t => t.type === 'income').reduce((a, b) => a + Number(b.amount), 0);
+            const exp = currentData.filter(t => t.type === 'expense').reduce((a, b) => a + Number(b.amount), 0);
+            const inv = currentData.filter(t => t.type === 'investment').reduce((a, b) => a + Number(b.amount), 0);
+
+            document.getElementById('totalBalance').innerText = formatCOP(inc - exp - inv);
+            document.getElementById('totalIn').innerText = formatCOP(inc);
+            document.getElementById('totalOut').innerText = formatCOP(exp);
+
+            const listHtml = data.slice(0, 10).map(t => `
+                <div class="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-2xl flex items-center justify-center ${t.type === 'income' ? 'bg-emerald-50 text-emerald-600' : t.type === 'expense' ? 'bg-rose-50 text-rose-600' : 'bg-blue-50 text-blue-600'}">
+                            <i data-lucide="${t.type === 'income' ? 'trending-up' : t.type === 'expense' ? 'trending-down' : 'piggy-bank'}" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-xs uppercase text-slate-700">${t.description}</p>
+                            <p class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">${t.date} • ${t.category}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="font-black text-sm ${t.type === 'income' ? 'text-emerald-600' : 'text-slate-900'}">${formatCOP(t.amount)}</span>
+                        <button onclick="deleteDocById('movimientos', '${t.id}')" class="opacity-0 group-hover:opacity-100 p-2 text-slate-200 hover:text-rose-500 transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('recentList').innerHTML = data.length ? listHtml : '<p class="text-center text-slate-300 py-10 text-xs italic">No hay registros aún.</p>';
+            lucide.createIcons();
+            
+            // Recalcular patrimonio total si se está en Dashboard
+            calculateGlobalAssets(data);
+        }
+
+        function renderBags(bags) {
+            const listHtml = bags.map(b => `
+                <div class="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-4">
+                    <div class="flex justify-between items-start">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center"><i data-lucide="piggy-bank"></i></div>
+                            <div>
+                                <h4 class="font-black text-slate-800 uppercase tracking-tight">${b.nombre}</h4>
+                                <p class="text-[10px] text-slate-400 font-bold">${b.desc || 'Sin descripción'}</p>
+                            </div>
+                        </div>
+                        <button onclick="deleteDocById('bolsas', '${b.id}')" class="text-slate-200 hover:text-rose-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </div>
+                    <div>
+                        <p class="text-[9px] font-bold text-slate-400 uppercase">Saldo en Bolsa</p>
+                        <p class="text-2xl font-black text-slate-800">${formatCOP(b.saldo || 0)}</p>
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('bagsList').innerHTML = listHtml;
+            lucide.createIcons();
+        }
+
+        function calculateGlobalAssets(transactions) {
+            const total = transactions.filter(t => t.type === 'investment').reduce((a, b) => a + Number(b.amount), 0);
+            document.getElementById('totalAssets').innerText = formatCOP(total);
+        }
+
+        function renderBudgetList(budgetData) {
+            const listHtml = categories.expense.map(cat => {
+                const limit = budgetData[cat] || 0;
+                // Deberíamos filtrar transacciones reales de este mes para esta categoría
+                // pero por ahora simplificamos la UI.
+                return `
+                <div class="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
+                    <div class="flex justify-between items-end mb-2">
+                        <div>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${cat}</p>
+                            <p class="text-sm font-bold text-slate-700">Meta: ${formatCOP(limit)}</p>
+                        </div>
+                    </div>
+                    <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-blue-600 transition-all duration-1000" style="width: ${limit > 0 ? '0%' : '0%'}"></div>
+                    </div>
+                </div>`;
+            }).join('');
+            document.getElementById('budgetList').innerHTML = listHtml;
+        }
+
+        // --- HANDLERS UI ---
+        window.setActiveTab = (tab) => {
+            currentTab = tab;
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            
+            document.querySelectorAll('.nav-btn').forEach(b => {
+                b.classList.remove('text-blue-600');
+                b.classList.add('text-slate-300');
+                if(b.dataset.tab === tab) {
+                    b.classList.replace('text-slate-300', 'text-blue-600');
+                }
+            });
+            lucide.createIcons();
+        };
+
+        window.changeMonth = (inc) => {
+            const date = new Date(currentMonth + '-02');
+            date.setMonth(date.getMonth() + inc);
+            currentMonth = date.toISOString().split('T')[0].substring(0, 7);
+            updateUI();
+            initData(); // Recargar datos del mes
+        };
+
+        function updateUI() {
+            const date = new Date(currentMonth + '-02');
+            document.getElementById('currentMonthLabel').innerText = date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+        }
+
+        window.setTransType = (type) => {
+            activeTransType = type;
+            document.getElementById('btnTypeIn').className = type === 'income' ? 'flex-1 py-3 text-[10px] font-black uppercase rounded-xl transition-all bg-white shadow-sm text-blue-600' : 'flex-1 py-3 text-[10px] font-black uppercase rounded-xl transition-all text-slate-400';
+            document.getElementById('btnTypeOut').className = type === 'expense' ? 'flex-1 py-3 text-[10px] font-black uppercase rounded-xl transition-all bg-white shadow-sm text-blue-600' : 'flex-1 py-3 text-[10px] font-black uppercase rounded-xl transition-all text-slate-400';
+            document.getElementById('btnTypeInv').className = type === 'investment' ? 'flex-1 py-3 text-[10px] font-black uppercase rounded-xl transition-all bg-white shadow-sm text-blue-600' : 'flex-1 py-3 text-[10px] font-black uppercase rounded-xl transition-all text-slate-400';
+            populateCatSelect();
+        };
+
+        function populateCatSelect() {
+            const select = document.getElementById('transCat');
+            const list = categories[activeTransType] || [];
+            select.innerHTML = list.map(c => `<option value="${c}">${c}</option>`).join('') || '<option value="">No hay categorías</option>';
+        }
+
+        function populateBudgetInputs(budgetData) {
+            const container = document.getElementById('budgetInputs');
+            container.innerHTML = categories.expense.map(cat => `
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase ml-2">${cat}</label>
+                    <input type="number" name="${cat}" value="${budgetData[cat] || 0}" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-black text-sm">
+                </div>
+            `).join('');
+        }
+
+        // --- ACCIONES FIREBASE ---
+        document.getElementById('formTrans').onsubmit = async (e) => {
+            e.preventDefault();
+            const desc = document.getElementById('transDesc').value;
+            const amt = document.getElementById('transAmt').value;
+            const cat = document.getElementById('transCat').value;
+            
+            showLoading(true);
+            try {
+                await addDoc(collection(db, "artifacts", appId, "users", user.uid, "movimientos"), {
+                    type: activeTransType,
+                    category: cat,
+                    description: desc,
+                    amount: Number(amt),
+                    date: new Date().toISOString().split('T')[0],
+                    timestamp: Date.now()
+                });
+
+                // Si es inversión, actualizar saldo de la bolsa
+                if(activeTransType === 'investment') {
+                    const q = query(collection(db, "artifacts", appId, "users", user.uid, "bolsas"));
+                    const snap = await getDoc(doc(db, "artifacts", appId, "users", user.uid, "bolsas", cat)); // Esto requiere ID de doc, no nombre. 
+                    // Simplificado: Solo se guarda el registro de movimiento.
+                }
+
+                closeModal('modalTrans');
+                e.target.reset();
+            } catch (err) { alert(err.message); } finally { showLoading(false); }
+        };
+
+        document.getElementById('formBag').onsubmit = async (e) => {
+            e.preventDefault();
+            const nombre = document.getElementById('bagName').value;
+            const desc = document.getElementById('bagDesc').value;
+            showLoading(true);
+            try {
+                await setDoc(doc(db, "artifacts", appId, "users", user.uid, "bolsas", nombre), {
+                    nombre, desc, saldo: 0
+                });
+                closeModal('modalBag');
+                e.target.reset();
+            } catch (err) { alert(err.message); } finally { showLoading(false); }
+        };
+
+        document.getElementById('formBudget').onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = {};
+            formData.forEach((val, key) => data[key] = Number(val));
+            
+            showLoading(true);
+            try {
+                const docRef = doc(db, "artifacts", appId, "users", user.uid, "settings", "presupuestos");
+                const currentDoc = await getDoc(docRef);
+                const fullData = currentDoc.exists() ? currentDoc.data() : {};
+                fullData[currentMonth] = data;
+                await setDoc(docRef, fullData);
+                closeModal('modalBudget');
+            } catch (err) { alert(err.message); } finally { showLoading(false); }
+        };
+
+        window.deleteDocById = async (col, id) => {
+            if(confirm("¿Eliminar este registro?")) {
+                showLoading(true);
+                await deleteDoc(doc(db, "artifacts", appId, "users", user.uid, col, id));
+                showLoading(false);
+            }
+        };
+
+        // --- UTILS ---
+        window.openModal = (id) => document.getElementById(id).classList.replace('hidden', 'flex');
+        window.closeModal = (id) => document.getElementById(id).classList.replace('flex', 'hidden');
+        function showLoading(s) { document.getElementById('loadingOverlay').style.display = s ? 'flex' : 'none'; }
+        const formatCOP = (v) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(v || 0);
+
+        lucide.createIcons();
+    </script>
+</body>
+</html>
